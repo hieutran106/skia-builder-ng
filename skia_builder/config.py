@@ -1,24 +1,25 @@
 import os
-from builder.versions import ANDROID_NDK
+from skia_builder.versions import ANDROID_NDK
 
 INCLUDE_DIRS = ["include", "modules", "src"]  # , "third_party"]
 DEFAULT_OUTPUT_DIR = os.path.join(os.getcwd(), "output")
 
 
 bin_extensions_by_platform = {
-    "Windows": ("lib", "dat"),
-    "Linux": ("a", "dat"),
-    "Darwin": ("a", "dat"),
-    "Android": ("a", "dat"),
-    "iOS": ("a", "dat"),
-    "iOSSimulator": ("a", "dat"),
+    "windows": ("lib", "dat"),
+    "linux": ("a", "dat"),
+    "macos": ("a", "dat"),
+    "android": ("a", "dat"),
+    "ios": ("a", "dat"),
+    "iossimulator": ("a", "dat"),
 }
 
 
 common_flags = {
-    "extra_cflags": [
-        "-g0"
-    ],  # Removes debug symbols from the binary to reduce its size (required for linux/darwin) - Fixed here: Stop forcing debug symbol generation with skia_enable_optimize_size | https://skia-review.googlesource.com/c/skia/+/892217
+    # Removes debug symbols from the binary to reduce its size (required for linux/macos)
+    # - Fixed here: Stop forcing debug symbol generation with skia_enable_optimize_size
+    # | https://skia-review.googlesource.com/c/skia/+/892217
+    "extra_cflags": ["-g0"],
     "is_debug": False,
     "is_official_build": True,
     "is_component_build": False,
@@ -46,6 +47,7 @@ common_flags = {
 
 
 android_base_flags = {
+    **common_flags,
     # graphics backends
     "skia_use_gl": True,
     "skia_use_vulkan": True,
@@ -65,6 +67,7 @@ android_base_flags = {
 
 
 linux_base_flags = {
+    **common_flags,
     # graphics backends
     "skia_use_gl": True,
     "skia_use_vulkan": True,
@@ -80,6 +83,7 @@ linux_base_flags = {
 }
 
 macos_base_flags = {
+    **common_flags,
     # graphics backends
     "skia_use_gl": True,
     "skia_use_vulkan": False,
@@ -89,10 +93,11 @@ macos_base_flags = {
     "skia_use_metal": True,
     # build env configs
     "target_os": "mac",
-    "skia_gl_standard": os.environ.get("SKIABUILDER_SKIA_GL_STANDARD", "gles"),
+    "skia_gl_standard": "gles",
 }
 
 ios_base_flags = {
+    **common_flags,
     # graphics backends
     "skia_use_gl": True,
     "skia_use_vulkan": False,
@@ -107,6 +112,7 @@ ios_base_flags = {
 
 platform_specific_flags = {
     "windows-x64": {
+        **common_flags,
         # graphics backends
         "skia_use_gl": True,
         "skia_use_vulkan": True,
@@ -135,12 +141,10 @@ platform_specific_flags = {
         "extra_cflags": [
             *linux_base_flags["extra_cflags"],
             "-fPIC",
-            # "--target=aarch64-linux-gnu",  # Target for ARM64 architecture (little-endian)
         ],
         "extra_cflags_cc": [
             *linux_base_flags["extra_cflags_cc"],
             "-fPIC",
-            # "--target=aarch64-linux-gnu",
         ],
     },
     # "linux-arm": {
@@ -188,9 +192,25 @@ platform_specific_flags = {
 }
 
 
+def parse_override_build_args(base_args_str, override_args_str):
+    base_args = base_args_str.replace("'", '"').split()
+    override_args = override_args_str.replace("'", '"').split()
+
+    for override_arg in override_args:
+        flag_b, value_b = override_arg.split("=", 1)
+
+        # Loop through base_args and update the matching flag-value pairs
+        for i, custom_arg in enumerate(base_args):
+            flag_a, _ = custom_arg.split("=", 1)
+            if flag_a == flag_b:
+                base_args[i] = f"{flag_a}={value_b}"
+                break
+
+    return " ".join(base_args)
+
+
 def get_build_args(target_platform):
-    platform_flags = platform_specific_flags.get(target_platform, {})
-    flags = {**common_flags, **platform_flags}
+    flags = platform_specific_flags.get(target_platform, {})
 
     args_list = []
     for key, value in flags.items():

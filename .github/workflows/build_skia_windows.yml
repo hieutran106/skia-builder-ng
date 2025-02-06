@@ -1,4 +1,4 @@
-name: Build Skia - macOS (arm64, x64)
+name: Build Skia - Windows (x64)
 
 on:
   push:
@@ -8,15 +8,15 @@ on:
     types: [opened, synchronize]
 
 concurrency:
-  group: build-macos-${{ github.event.pull_request.number || github.ref }}
+  group: build-windows-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build-macos:
+  build-windows:
     if: |
       startsWith(github.ref, 'refs/tags/') ||
-      (contains(github.event.pull_request.labels.*.name, 'ci/build-binaries-macos'))
-    runs-on: macos-latest
+      (contains(github.event.pull_request.labels.*.name, 'ci/build-binaries-windows'))
+    runs-on: windows-latest
 
     permissions:
       contents: write
@@ -34,23 +34,21 @@ jobs:
       run: |
         pip install .
 
-    - name: Setup skia environment for macOS
+    - name: Setup skia environment for Windows
       run: |
         skia-builder setup-env
 
-    - name: Build skia for macOS
+    - name: Build skia for Windows
       run: |
-        skia-builder build --target-cpu=arm64 --archive
         skia-builder build --target-cpu=x64 --archive
 
     - name: Upload artifacts
       if: github.event_name == 'pull_request'
       uses: actions/upload-artifact@v4.4.3
       with:
-        name: skia-artifacts
+        name: skia-artifacts-windows
         path: |
-          output/macos-x64/macos-x64.tar.gz
-          output/macos-arm64/macos-arm64.tar.gz
+          output/windows-x64/windows-x64.tar.gz
 
     - name: Upload artifacts to release
       if: startsWith(github.ref, 'refs/tags/')
@@ -58,6 +56,5 @@ jobs:
       with:
         name: ${{ github.ref_name }}
         files: |
-          output/macos-x64/macos-x64.tar.gz
-          output/macos-arm64/macos-arm64.tar.gz
+          output/windows-x64/windows-x64.tar.gz
         draft: true

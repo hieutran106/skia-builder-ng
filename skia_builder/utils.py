@@ -5,9 +5,8 @@ import subprocess
 import sys
 import tarfile
 import threading
-import platform
 
-from builder.config import DEFAULT_OUTPUT_DIR, INCLUDE_DIRS, bin_extensions_by_platform
+from skia_builder.config import DEFAULT_OUTPUT_DIR, INCLUDE_DIRS, bin_extensions_by_platform
 
 
 class Logger:
@@ -37,8 +36,8 @@ class Logger:
         print(f"{Logger.GREEN}[INFO]{Logger.RESET} {message}", flush=True)
 
     @staticmethod
-    def warn(message):
-        print(f"{Logger.YELLOW}[WARN]{Logger.RESET} {message}", flush=True)
+    def warning(message):
+        print(f"{Logger.YELLOW}[WARNING]{Logger.RESET} {message}", flush=True)
 
     @staticmethod
     def error(message):
@@ -62,10 +61,8 @@ class Logger:
         print(formatted_message, flush=True)
 
 
-def run_command(command_list, step_description, cwd=None):
-    Logger.custom(
-        f"\n--- Running step: {step_description} ---", Logger.BRIGHT_YELLOW
-    )
+def run_command(command_list, step_description, cwd=None, exit_on_error=True):
+    Logger.custom(f"\n--- Running step: {step_description} ---", Logger.BRIGHT_YELLOW)
 
     process = None
     returncode = 0
@@ -95,9 +92,7 @@ def run_command(command_list, step_description, cwd=None):
                     break
                 log_function(line.strip())
 
-        stdout_thread = threading.Thread(
-            target=print_output, args=(process.stdout, print)
-        )
+        stdout_thread = threading.Thread(target=print_output, args=(process.stdout, print))
         stderr_thread = threading.Thread(
             target=print_output,
             args=(process.stderr, lambda line: print(line, file=sys.stderr)),
@@ -133,9 +128,11 @@ def run_command(command_list, step_description, cwd=None):
         color = Logger.RED
     Logger.custom(message, color, bold=True)
 
-    if returncode != 0:
+    if returncode != 0 and exit_on_error:
         Logger.error(f"Exit code: {returncode}\n")
         sys.exit(returncode)
+
+    return returncode
 
 
 def get_files_with_extensions(directory, extensions):
@@ -150,11 +147,28 @@ def get_files_with_extensions(directory, extensions):
     return matching_files
 
 
-def store_includes(skia_dir, output_dir=None):
+def _ensure_output_dir(output_dir):
     if output_dir is None:
         output_dir = DEFAULT_OUTPUT_DIR
-
     os.makedirs(output_dir, exist_ok=True)
+    return output_dir
+
+
+def store_skia_license(skia_dir, output_dir=None):
+    output_dir = _ensure_output_dir(output_dir)
+
+    src_license = os.path.join(skia_dir, "LICENSE")
+    dest_license = os.path.join(output_dir, "SKIA_LICENSE")
+
+    if os.path.exists(src_license):
+        shutil.copy(src_license, dest_license)
+        Logger.info(f"Copied LICENSE to {dest_license}")
+    else:
+        Logger.error(f"LICENSE file not found at {src_license}")
+
+
+def store_includes(skia_dir, output_dir=None):
+    output_dir = _ensure_output_dir(output_dir)
 
     for folder in INCLUDE_DIRS:
         src_folder = os.path.join(skia_dir, folder)
@@ -167,9 +181,8 @@ def store_includes(skia_dir, output_dir=None):
             Logger.error(f"{src_folder} does not exist.")
 
 
-def archive_build_output(build_input_src, platform=platform.system(), output_dir=None):
-    if output_dir is None:
-        output_dir = DEFAULT_OUTPUT_DIR
+def archive_build_output(build_input_src, target_platform, output_dir=None):
+    output_dir = _ensure_output_dir(output_dir)
 
     if not os.path.exists(build_input_src):
         Logger.error(
@@ -183,20 +196,19 @@ def archive_build_output(build_input_src, platform=platform.system(), output_dir
     os.makedirs(output_bin_dir, exist_ok=True)
 
     # Get the list of files with the specified extensions
-    matching_files = get_files_with_extensions(build_input_src, bin_extensions_by_platform[platform])
+    matching_files = get_files_with_extensions(
+        build_input_src, bin_extensions_by_platform[target_platform]
+    )
 
     # Copy each matching file to the output_bin_dir
     for file_path in matching_files:
         shutil.copy(file_path, output_bin_dir)
         Logger.info(f"Copied {file_path} to {output_bin_dir}")
 
-    tar_path = os.path.join(
-        output_dir, f"{os.path.basename(build_input_src)}.tar.gz"
-    )
+    tar_path = os.path.join(output_dir, f"{os.path.basename(build_input_src)}.tar.gz")
     with tarfile.open(tar_path, "w:gz") as tar:
         for name in os.listdir(output_dir):
             full_path = os.path.join(output_dir, name)
-            if os.path.isdir(full_path):
-                tar.add(full_path, arcname=name)
+            tar.add(full_path, arcname=name)
 
     Logger.info(f"Build output archived to {tar_path}")
