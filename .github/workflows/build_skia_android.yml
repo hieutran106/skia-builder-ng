@@ -29,9 +29,6 @@ jobs:
           - target_cpu: x86
             artifact_prefix: android-x86
 
-    permissions:
-      contents: write
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4.2.2
@@ -60,6 +57,8 @@ jobs:
   merge-artifacts:
     needs: [build-android-all]
     runs-on: windows-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/download-artifact@v4.3.0
         with:
