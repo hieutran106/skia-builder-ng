@@ -87,10 +87,10 @@ skia-builder setup-env --sub-env=Android
 
 ### Listing available build arguments
 
-The `list-args` command displays all available build configuration arguments supported by the Skia version. These flags can be overridden using `--custom-build-args` or `--override-build-args`.
+The `list-available-args` command displays all available build configuration arguments supported by the Skia version. These flags can be overridden using `--custom-build-args` or `--override-build-args`.
 
 ```
-skia-builder list-args
+skia-builder list-available-args
 ```
 
 

@@ -110,8 +110,8 @@ def main():
     )
     build_parser.set_defaults(func=build)
 
-    # list-args subcommand
-    list_args_parser = subparsers.add_parser("list-args", help="List available build arguments")
+    # list-available-args subcommand
+    list_args_parser = subparsers.add_parser("list-available-args", help="List available build arguments")
     list_args_parser.set_defaults(func=list_build_arguments)
 
     args = parser.parse_args()
@@ -152,7 +152,7 @@ def main():
             args.sub_env,
         )
 
-    elif args.command == "list-args":
+    elif args.command == "list-available-args":
         list_build_arguments(current_platform)
 
     else:
