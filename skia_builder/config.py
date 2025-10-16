@@ -134,7 +134,9 @@ platform_specific_flags = {
         "cc": "clang-cl",
         "cxx": "clang-cl++",
         "clang_win": "C:/Program Files/LLVM",
-        "extra_cflags_cc": ["/std:c++17"],
+        # Unreal Engine Dynamic CRT linkage /MD
+        "extra_cflags_cc": ["/std:c++17", "/MD"],
+        "extra_cflags": ["/MD"]
     },
     "linux-x64": {
         **linux_base_flags,
