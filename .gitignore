@@ -2,3 +2,5 @@
 skia_builder.egg-info
 output
 .idea/
+skia/
+depot_tools/
